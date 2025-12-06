@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 pillow = "==12.0.0"
+pywin32 = "==311"
 
 [dev-packages]
 

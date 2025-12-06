@@ -1,8 +1,7 @@
-from printer import (
-    MockPrinter,
-    Printer
-)
+from printer import Printer
+from mock_printer import MockPrinter
 
-drv = MockPrinter()
-# drv = Printer()
+drv = MockPrinter(num_printers=3)
+#drv = Printer()
+#drv = Printer("Microsoft Print to PDF")
 drv.print_images("sample.jpg", 3)
