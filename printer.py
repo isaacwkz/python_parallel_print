@@ -41,7 +41,7 @@ class Printer():
         print("Printer size: {}".format(self.printer_size))
 
 
-    def print_images(self, file_path, num_copies=1):
+    def print_images(self, file_path, num_copies=1, autorotate=True, autoscale=False):
         print("File: {} Copies: {}".format(file_path, num_copies))
         # 1. Open the image
         try:
@@ -51,15 +51,29 @@ class Printer():
             return
         print("Image opened successfully.")
 
-        # Scale the image to fit printer size
-        # We compare the width ratio and height ratio and take the smaller one
-        scale = min(self.printer_size[0] / im.width, self.printer_size[1] / im.height)
-        print("Scale factor: {}".format(scale))
+        if (autorotate):
+            if (im.width > im.height):
+                # This is a landscape image, rotate it
+                im = im.rotate(90, expand=True)
+                print("Rotated image to portrait mode.")
+
+        if (autoscale):
+            print("Autoscale is enabled.")
+            # Scale the image to fit printer size
+            # We compare the width ratio and height ratio and take the smaller one
+            scale = min(self.printer_size[0] / im.width, self.printer_size[1] / im.height)
+            print("Scale factor: {}".format(scale))
+        else:
+            scale = 1.0
+            print("Autoscale is disabled. Using scale factor: {}".format(scale))
 
         # Calculate new size
         new_width = int(im.width * scale)
         new_height = int(im.height * scale)
-        print("Scaling image to: {}x{}".format(new_width, new_height))
+        if (autoscale):
+            print("Scaling image to: {}x{}".format(new_width, new_height))
+        else:
+            print("Keeping original image size: {}x{}".format(new_width, new_height))
         
         # Center the image on the page (optional, remove offsets to print top-left)
         x_offset = (self.printer_size[0] - new_width) // 2
@@ -67,28 +81,31 @@ class Printer():
 
         page_per_printer = num_copies // self.num_printers
         remainder = num_copies % self.num_printers
+        print("Page per printer: {}, Remainder: {}".format(page_per_printer, remainder))
         
         for x in range(self.num_printers):
-            try:
-                # Start the document to print
-                self.hDC[x].StartDoc("{} - {}".format(x, file_path))
-                pages = page_per_printer + (1 if x < remainder else 0)
-                for y in range (pages):
-                    self.hDC[x].StartPage()
-                    # Creat Windows bitmap
-                    dib = ImageWin.Dib(im)
-                    # Draw the image on the new page with the scaling calculated from earlier
-                    dib.draw(self.hDC[x].GetHandleOutput(), (x_offset, y_offset, x_offset + new_width, y_offset + new_height))
-                    self.hDC[x].EndPage()
-                # End the document to print
-                self.hDC[x].EndDoc()
-                print("Sent {} pages to printer {}".format(pages, x))
-            except Exception as e:
-                print("Error printing from {}: {}".format(x, e))
-                # If a job was started but failed, we might need to abort
+            pages = page_per_printer + (1 if x < remainder else 0)
+            if (pages > 0):
+                # We only try to send a job to the printer is there are >0 pages to print
                 try:
-                    self.hDC[x].AbortDoc()
-                except:
-                    pass
-                raise
+                    # Start the document to print
+                    self.hDC[x].StartDoc("{} - {}".format(x, file_path))
+                    for y in range (pages):
+                        self.hDC[x].StartPage()
+                        # Creat Windows bitmap
+                        dib = ImageWin.Dib(im)
+                        # Draw the image on the new page with the scaling calculated from earlier
+                        dib.draw(self.hDC[x].GetHandleOutput(), (x_offset, y_offset, x_offset + new_width, y_offset + new_height))
+                        self.hDC[x].EndPage()
+                    # End the document to print
+                    self.hDC[x].EndDoc()
+                    print("Sent {} pages to printer {}".format(pages, x))
+                except Exception as e:
+                    print("Error printing from {}: {}".format(x, e))
+                    # If a job was started but failed, we might need to abort
+                    try:
+                        self.hDC[x].AbortDoc()
+                    except:
+                        pass
+                    raise
         
